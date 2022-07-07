@@ -66,7 +66,7 @@ def parse_option():
 
 
 def main(config):
-    data_loader_train = build_loader(config, logger, is_pretrain=True)
+    data_loader_train = build_loader(config, logger, is_pretrain=True) #loads the trianing data
 
     logger.info(f"Creating model:{config.MODEL.TYPE}/{config.MODEL.NAME}")
     model = build_model(config, is_pretrain=True)
@@ -80,11 +80,12 @@ def main(config):
     model_without_ddp = model.module
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    #returns number of parameters based on dimension of fi array of parameters
     logger.info(f"number of params: {n_parameters}")
     if hasattr(model_without_ddp, 'flops'):
         flops = model_without_ddp.flops()
         logger.info(f"number of GFLOPs: {flops / 1e9}")
-
+        #counts floating operations per second
     lr_scheduler = build_scheduler(config, optimizer, len(data_loader_train))
 
     if config.TRAIN.AUTO_RESUME:
@@ -119,7 +120,7 @@ def main(config):
 def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
     model.train()
     optimizer.zero_grad()
-
+    #sets gradients back to zero in case
     num_steps = len(data_loader)
     batch_time = AverageMeter()
     loss_meter = AverageMeter()
@@ -127,15 +128,16 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
 
     start = time.time()
     end = time.time()
+    #times the load
     for idx, (img, mask, _) in enumerate(data_loader):
         img = img.cuda(non_blocking=True)
         mask = mask.cuda(non_blocking=True)
 
         loss = model(img, mask)
-
+        #calculates loss
         if config.TRAIN.ACCUMULATION_STEPS > 1:
             loss = loss / config.TRAIN.ACCUMULATION_STEPS
-            if config.AMP_OPT_LEVEL != "O0":
+            if config.AMP_OPT_LEVEL != "O0": #if no amps depreciated
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
                 if config.TRAIN.CLIP_GRAD:
@@ -143,11 +145,11 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
                 else:
                     grad_norm = get_grad_norm(amp.master_params(optimizer))
             else:
-                loss.backward()
-                if config.TRAIN.CLIP_GRAD:
-                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.TRAIN.CLIP_GRAD)
+                loss.backward() #sums change is loss over change in x for every param that requires gradient
+                if config.TRAIN.CLIP_GRAD: #if gradient needs to be clipped
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.TRAIN.CLIP_GRAD) #clip gradient
                 else:
-                    grad_norm = get_grad_norm(model.parameters())
+                    grad_norm = get_grad_norm(model.parameters()) #else, proceed normally with updating gradients
             if (idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0:
                 optimizer.step()
                 optimizer.zero_grad()
