@@ -157,7 +157,7 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
         else:
             optimizer.zero_grad()
             if config.AMP_OPT_LEVEL != "O0": #if no amps depreciated
-                with amp.scale_loss(loss, optimizer) as scaled_loss:
+                with amp.scale_loss(loss, optimizer) as scaled_loss:#
                     scaled_loss.backward()#same as previous loss
                 if config.TRAIN.CLIP_GRAD:#if gradients need to be clipped
                     grad_norm = torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), config.TRAIN.CLIP_GRAD)#clip the gradients based on optimizer
