@@ -31,7 +31,7 @@ try:
 except ImportError:
     amp = None
 
-
+#what does this do
 def parse_option():
     parser = argparse.ArgumentParser('SimMIM pre-training script', add_help=False)
     parser.add_argument('--cfg', type=str, required=True, metavar="FILE", help='path to config file', )
@@ -65,8 +65,8 @@ def parse_option():
     return args, config
 
 
-def main(config):
-    data_loader_train = build_loader(config, logger, is_pretrain=True) #loads the trianing data
+def main(config): #what does this do
+    data_loader_train = build_loader(config, logger, is_pretrain=True) #loads the training data
 
     logger.info(f"Creating model:{config.MODEL.TYPE}/{config.MODEL.NAME}")
     model = build_model(config, is_pretrain=True)
@@ -115,7 +115,7 @@ def main(config):
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
     logger.info('Training time {}'.format(total_time_str))
-
+    #what did any of that do? is it just compiling?
 
 def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
     model.train()
@@ -137,7 +137,7 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
         #calculates loss
         if config.TRAIN.ACCUMULATION_STEPS > 1:
             loss = loss / config.TRAIN.ACCUMULATION_STEPS
-            if config.AMP_OPT_LEVEL != "O0": #if no amps depreciated
+            if config.AMP_OPT_LEVEL != "O0": 
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
                     scaled_loss.backward()
                 if config.TRAIN.CLIP_GRAD:
@@ -150,34 +150,34 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
                     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.TRAIN.CLIP_GRAD) #clip gradient
                 else:
                     grad_norm = get_grad_norm(model.parameters()) #else, proceed normally with updating gradients
-            if (idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0:
+            if (idx + 1) % config.TRAIN.ACCUMULATION_STEPS == 0: 
                 optimizer.step()
                 optimizer.zero_grad()
                 lr_scheduler.step_update(epoch * num_steps + idx)
         else:
             optimizer.zero_grad()
-            if config.AMP_OPT_LEVEL != "O0":
+            if config.AMP_OPT_LEVEL != "O0": #if no amps depreciated
                 with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    scaled_loss.backward()
-                if config.TRAIN.CLIP_GRAD:
-                    grad_norm = torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), config.TRAIN.CLIP_GRAD)
+                    scaled_loss.backward()#same as previous loss
+                if config.TRAIN.CLIP_GRAD:#if gradients need to be clipped
+                    grad_norm = torch.nn.utils.clip_grad_norm_(amp.master_params(optimizer), config.TRAIN.CLIP_GRAD)#clip the gradients based on optimizer
                 else:
-                    grad_norm = get_grad_norm(amp.master_params(optimizer))
+                    grad_norm = get_grad_norm(amp.master_params(optimizer))#update gradients normally
             else:
-                loss.backward()
-                if config.TRAIN.CLIP_GRAD:
+                loss.backward()#sums change is loss over change in x for every param that requires gradient
+                if config.TRAIN.CLIP_GRAD:#same as above for the rest of this code block
                     grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.TRAIN.CLIP_GRAD)
                 else:
                     grad_norm = get_grad_norm(model.parameters())
-            optimizer.step()
-            lr_scheduler.step_update(epoch * num_steps + idx)
-
+            optimizer.step() #returns loss, reevealuates the model
+            lr_scheduler.step_update(epoch * num_steps + idx) #decays the learning rate of the model by the specified value, higher for later epochs, batch size constant and idx changes
+#i think all this previous stuff focused on gradient descent and weight decay, not really sure what 
         torch.cuda.synchronize()
 
-        loss_meter.update(loss.item(), img.size(0))
-        norm_meter.update(grad_norm)
-        batch_time.update(time.time() - end)
-        end = time.time()
+        loss_meter.update(loss.item(), img.size(0)) #update loss based off the float value for loss, size of image
+        norm_meter.update(grad_norm) #updates vector norm with the normalized gradient value
+        batch_time.update(time.time() - end)   #updates batch time
+        end = time.time()#end time
 
         if idx % config.PRINT_FREQ == 0:
             lr = optimizer.param_groups[0]['lr']
