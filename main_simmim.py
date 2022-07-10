@@ -65,7 +65,7 @@ def parse_option():
     return args, config
 
 
-def main(config): #what does this do
+def main(config): 
     data_loader_train = build_loader(config, logger, is_pretrain=True) #loads the training data
 
     logger.info(f"Creating model:{config.MODEL.TYPE}/{config.MODEL.NAME}")
@@ -171,7 +171,7 @@ def train_one_epoch(config, model, data_loader, optimizer, epoch, lr_scheduler):
                     grad_norm = get_grad_norm(model.parameters())
             optimizer.step() #returns loss, reevealuates the model
             lr_scheduler.step_update(epoch * num_steps + idx) #decays the learning rate of the model by the specified value, higher for later epochs, batch size constant and idx changes
-#i think all this previous stuff focused on gradient descent and weight decay, not really sure what 
+#i think all this previous stuff focused on gradient descent and learning rate decay, not 100% sure 
         torch.cuda.synchronize()
 
         loss_meter.update(loss.item(), img.size(0)) #update loss based off the float value for loss, size of image
@@ -238,7 +238,7 @@ if __name__ == '__main__':
         path = os.path.join(config.OUTPUT, "config.json")
         with open(path, "w") as f:
             f.write(config.dump())
-        logger.info(f"Full config saved to {path}")
+        logger.info(f"Full config saved to {path}")#saves the model whenever it reaches a certain level of accuracy
 
     # print config
     logger.info(config.dump())
