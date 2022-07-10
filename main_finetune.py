@@ -27,7 +27,11 @@ from optimizer import build_optimizer
 from logger import create_logger
 from utils import load_checkpoint, load_pretrained, save_checkpoint, get_grad_norm, auto_resume_helper, reduce_tensor
 
-
+try:
+    # noinspection PyUnresolvedReferences
+    import amp
+except ImportError:
+    amp = None
 
 
 def parse_option():
@@ -55,7 +59,7 @@ def parse_option():
     parser.add_argument('--tag', help='tag of experiment')
     parser.add_argument('--eval', action='store_true', help='Perform evaluation only')
     parser.add_argument('--throughput', action='store_true', help='Test throughput only')
-
+    #parsers work by allowing the code to be modified through the command prompt, changing hyperparameters such as batch size and amp-opt-level"
     # distributed training
     parser.add_argument("--local_rank", type=int, required=True, help='local rank for DistributedDataParallel')
 
@@ -225,7 +229,7 @@ def train_one_epoch(config, model, criterion, data_loader, optimizer, epoch, mix
     logger.info(f"EPOCH {epoch} training takes {datetime.timedelta(seconds=int(epoch_time))}")
 
 
-@torch.no_grad()
+@torch.no_grad() #this is the part where the model can spit out the output, does not train and simply passes through
 def validate(config, data_loader, model):
     criterion = torch.nn.CrossEntropyLoss()
     model.eval()
@@ -248,7 +252,7 @@ def validate(config, data_loader, model):
         acc1, acc5 = accuracy(output, target, topk=(1, 5))
 
         acc1 = reduce_tensor(acc1)
-        acc5 = reduce_tensor(acc5)
+        acc5 = reduce_tensor(acc5)#different evaluation metrics
         loss = reduce_tensor(loss)
 
         loss_meter.update(loss.item(), target.size(0))
@@ -272,7 +276,7 @@ def validate(config, data_loader, model):
     return acc1_meter.avg, acc5_meter.avg, loss_meter.avg
 
 
-@torch.no_grad()
+@torch.no_grad() #don't worry about this part for right now
 def throughput(data_loader, model, logger):
     model.eval()
 
